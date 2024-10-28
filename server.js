@@ -62,13 +62,27 @@ app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/register.html'));
 });
 
-app.get('/register-mentor', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/register-mentor.html'));
+
+//Handle register
+app.post('/register', (req, res) => {
+    const { name, email, password, userType, expertise } = req.body;
+
+    // Insert user based on type
+    const query = userType === "mentor"
+        ? `INSERT INTO Users (name, email, password, userType, expertise) VALUES (?, ?, ?, 'mentor', ?)`
+        : `INSERT INTO Users (name, email, password, userType) VALUES (?, ?, ?, 'mentoree')`;
+
+    const params = userType === "mentor" ? [name, email, password, expertise] : [name, email, password];
+
+    db.query(query, params, (err, result) => {
+        if (err) {
+            console.error("Error registering user:", err);
+            return res.json({ success: false, message: 'Error: Could not create account.' });
+        }
+        res.json({ success: true, message: 'Account created successfully! Please log in.' });
+    });
 });
 
-app.get('/register-mentoree', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public/register-mentoree.html'));
-});
 
 // Handle login
 app.post('/login', (req, res) => {
