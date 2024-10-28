@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+<div class="d-flex">
+    <!-- Sidebar -->
+    <nav class="sidebar bg-light flex-column p-3">
+        <h4 class="sidebar-heading">Dashboard</h4>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link active" href="/dashboard/dashboard.html">Dashboard</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/search.html">Search</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/inbox.html">Inbox</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/calendar.html">Calendar</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/todo.html">To-Do</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/contacts.html">Contacts</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/invoice.html">Invoice</a></li>
+            <li class="nav-item"><a class="nav-link" href="/dashboard/settings.html">Settings</a></li>
+            <li class="nav-item"><a class="nav-link" href="/">Logout</a></li>
+        </ul>
+    </nav>
+
+    <!-- Main content -->
+    <div class="container-fluid">
+        <h1>Settings</h1>
+        <form id="settingsForm">
+            <!-- Display user type -->
+            <div class="mb-3">
+                <label class="form-label">User Type</label>
+                <input type="text" class="form-control" id="userType" disabled>
+            </div>
+
+            <!-- Editable fields -->
+            <div class="mb-3">
+                <label for="name" class="form-label">Name</label>
+                <input type="text" class="form-control" id="name" required>
+            </div>
+            <div class="mb-3">
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" required>
+            </div>
+            <div class="mb-3">
+                <label for="phone" class="form-label">Phone</label>
+                <input type="text" class="form-control" id="phone">
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" placeholder="Enter new password">
+            </div>
+
+            <!-- Expertise field for mentors only -->
+            <div class="mb-3" id="expertiseField" style="display: none;">
+                <label for="expertise" class="form-label">Expertise</label>
+                <input type="text" class="form-control" id="expertise" placeholder="Enter your area of expertise">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+        </form>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Fetch and display user data (assuming an API endpoint is available)
+        fetch('/api/get-user-info')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('userType').value = data.userType;
+                document.getElementById('name').value = data.name;
+                document.getElementById('email').value = data.email;
+                document.getElementById('phone').value = data.phone;
+                if (data.userType === 'mentor') {
+                    document.getElementById('expertiseField').style.display = 'block';
+                    document.getElementById('expertise').value = data.expertise || '';
+                }
+            });
+
+        // Handle form submission to save changes
+        document.getElementById('settingsForm').addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const updatedData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                password: document.getElementById('password').value,
+                expertise: document.getElementById('userType').value === 'mentor' ? document.getElementById('expertise').value : null
+            };
+
+            fetch('/api/update-user-info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            }).then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Profile updated successfully!');
+                        // Optionally, refresh the page or clear the password field
+                        document.getElementById('password').value = '';
+                    } else {
+                        alert('Failed to update profile.');
+                    }
+                });
+        });
+    });
+</script>
+</body>
+</html>
