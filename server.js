@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
+const nodemailer = require('nodemailer');
 const session = require('express-session');
 
 const app = express();
@@ -62,8 +63,47 @@ app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/register.html'));
 });
 
+app.get('/contact', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public/contact.html'));
+});
 
-//Handle register
+//Handle contact request to admin
+app.post('/send_email', (req, res) => {
+    const { firstName, lastName, email, phone, details } = req.body;
+
+    const transporter = nodemailer.createTransport({
+        service: 'gmail', // or any other email service
+        auth: {
+            user: 'your-email@gmail.com', // replace with your email
+            pass: 'your-email-password'   // replace with your email password or app-specific password
+        }
+    });
+
+    const mailOptions = {
+        from: email,
+        to: 'dana3pal@gmail.com',
+        subject: `Contact Form Submission from ${firstName} ${lastName}`,
+        text: `
+            First Name: ${firstName}
+            Last Name: ${lastName}
+            Email: ${email}
+            Phone: ${phone}
+            Details: ${details}
+        `
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+            console.log(error);
+            res.send('<script>alert("There was an error sending your message. Please try again later."); window.history.back();</script>');
+        } else {
+            console.log('Email sent: ' + info.response);
+            res.send('<script>alert("Your message has been sent successfully!"); window.location.href = "/contact";</script>');
+        }
+    });
+});
+
+//Handle register users
 app.post('/register', (req, res) => {
     const { name, email, password, userType, expertise } = req.body;
 
@@ -270,12 +310,146 @@ app.post('/search', (req, res) => {
         WHERE name LIKE ? OR expertise LIKE ?
     `;
     const formattedSearchTerm = `%${searchTerm}%`;
-
     db.query(query, [formattedSearchTerm, formattedSearchTerm], (err, results) => {
-        if (err) return res.status(500).json({ success: false, message: 'Error retrieving search results.' });
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: 'Error performing search.' });
+        }
         res.json({ success: true, results });
     });
 });
+
+// Mentorship request route
+app.post('/request-mentorship', (req, res) => {
+    const { userID } = req.body;
+    const mentoreeID = req.session.user.userID; // assuming user is logged in as mentoree
+    const query = `
+        INSERT INTO Request (mentorID, mentoreeID, status) VALUES (?, ?, 'pending')
+    `;
+    db.query(query, [userID, mentoreeID], (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: 'Failed to send mentorship request.' });
+        }
+        res.json({ success: true, message: 'Mentorship request sent!' });
+    });
+});
+
+// Friend request route
+app.post('/add-friend', (req, res) => {
+    const { userID } = req.body;
+    const userID1 = req.session.user.userID; // assuming logged-in user
+    const query = `
+        INSERT INTO Contacts (userID1, userID2, status) VALUES (?, ?, 'pending')
+    `;
+    db.query(query, [userID1, userID], (err) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: 'Failed to send friend request.' });
+        }
+        res.json({ success: true, message: 'Friend request sent!' });
+    });
+});
+
+// Send message route
+// app.post('/send-message', (req, res) => {
+//     const { receiverEmail, subject, messageBody } = req.body;
+//     const senderID = req.session.user.userID;
+//
+//     db.query('SELECT userID FROM Users WHERE email = ?', [receiverEmail], (err, results) => {
+//         if (err) {
+//             console.error(err);
+//             return res.status(500).json({ success: false, message: 'Error finding receiver.' });
+//         }
+//         if (results.length === 0) {
+//             return res.status(404).json({ success: false, message: 'Receiver not found.' });
+//         }
+//
+//         const receiverID = results[0].userID;
+//         const insertQuery = `
+//             INSERT INTO Communications (senderID, receiverID, subject, body, status) VALUES (?, ?, ?, ?, 'sent')
+//         `;
+//
+//         db.query(insertQuery, [senderID, receiverID, subject, messageBody], (err) => {
+//             if (err) {
+//                 console.error(err);
+//                 return res.status(500).json({ success: false, message: 'Failed to send message.' });
+//             }
+//             res.json({ success: true, message: 'Message sent successfully!' });
+//         });
+//     });
+// });
+
+
+// Fetch user data for the welcome message
+app.get('/user-data', (req, res) => {
+    if (req.session.user) {
+        res.json({ success: true, user: req.session.user });
+    } else {
+        res.json({ success: false, message: 'User not logged in' });
+    }
+});
+
+// Fetch pending mentorship requests
+app.get('/dashboard/requests', (req, res) => {
+    const userID = req.session.user.userID;
+    const userType = req.session.user.userType;
+
+    let query;
+    if (userType === 'mentor') {
+        query = `SELECT r.requestID, u.name AS mentoreeName, 'mentoree' AS userType 
+                 FROM Request r JOIN Users u ON r.mentoreeID = u.userID 
+                 WHERE r.mentorID = ? AND r.status = 'pending'`;
+    } else {
+        query = `SELECT r.requestID, u.name AS mentorName, 'mentor' AS userType 
+                 FROM Request r JOIN Users u ON r.mentorID = u.userID 
+                 WHERE r.mentoreeID = ? AND r.status = 'pending'`;
+    }
+
+    db.query(query, [userID], (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error' });
+        res.json({ success: true, requests: results });
+    });
+});
+
+// Respond to mentorship request
+app.post('/dashboard/respond-request/:requestID', (req, res) => {
+    const requestID = req.params.requestID;
+    const { status } = req.body;
+
+    const query = `UPDATE Request SET status = ? WHERE requestID = ?`;
+    db.query(query, [status, requestID], (err) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error' });
+        res.json({ success: true });
+    });
+});
+
+// Fetch pending friend requests
+app.get('/dashboard/friend-requests', (req, res) => {
+    const userID = req.session.user.userID;
+
+    const query = `SELECT c.contactID, u.name AS userName 
+                   FROM Contacts c JOIN Users u ON (c.userID1 = u.userID OR c.userID2 = u.userID)
+                   WHERE (c.userID1 = ? OR c.userID2 = ?) AND c.status = 'pending' AND u.userID != ?`;
+
+    db.query(query, [userID, userID, userID], (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error' });
+        res.json({ success: true, friendRequests: results });
+    });
+});
+
+// Respond to friend request
+app.post('/dashboard/respond-friend-request/:contactID', (req, res) => {
+    const contactID = req.params.contactID;
+    const { status } = req.body;
+
+    const query = `UPDATE Contacts SET status = ? WHERE contactID = ?`;
+    db.query(query, [status, contactID], (err) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error' });
+        res.json({ success: true });
+    });
+});
+
 
 // Send message route
 app.post('/send-message', (req, res) => {

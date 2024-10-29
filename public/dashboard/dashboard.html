@@ -53,11 +53,21 @@
       </div>
     </div>
 
-    <!-- Your content here -->
-    <div class="row">
-      <div class="col-md-12">
-        <h2>Your Dashboard Content</h2>
-        <p>This is where your dashboard content goes.</p>
+    <!-- Dashboard Content -->
+    <div class="row mt-3">
+      <!-- Pending Requests -->
+      <div class="col-md-6">
+        <h2>Pending Requests</h2>
+        <div id="pendingRequests">
+          <p>Loading pending requests...</p>
+        </div>
+      </div>
+      <!-- Friend Requests -->
+      <div class="col-md-6">
+        <h2>Friend Requests</h2>
+        <div id="friendRequests">
+          <p>Loading friend requests...</p>
+        </div>
       </div>
     </div>
   </div>
@@ -66,18 +76,107 @@
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-  // Fetch user data from the server
+  // Fetch user data from the server and display welcome message
   fetch('/user-data')
           .then(response => response.json())
           .then(data => {
             if (data.success) {
-              // Display the user's name in the welcome message
               document.getElementById('welcomeMessage').textContent = `Welcome, ${data.user.name}`;
             } else {
               alert('Unable to fetch user data.');
             }
           });
+
+  // Load pending mentorship requests
+  function loadPendingRequests() {
+    fetch('/dashboard/requests')
+            .then(response => response.json())
+            .then(data => {
+              const pendingRequestsContainer = document.getElementById('pendingRequests');
+              pendingRequestsContainer.innerHTML = '';
+              if (data.requests.length === 0) {
+                pendingRequestsContainer.innerHTML = '<p>No pending requests.</p>';
+              } else {
+                data.requests.forEach(request => {
+                  const requestCard = document.createElement('div');
+                  requestCard.className = 'card mb-3';
+                  requestCard.innerHTML = `
+              <div class="card-body">
+                <h5 class="card-title">${request.mentorName || request.mentoreeName}</h5>
+                <p class="card-text">Request from: ${request.userType === 'mentor' ? 'Mentor' : 'Mentoree'}</p>
+                <button class="btn btn-success" onclick="respondToRequest(${request.requestID}, 'accepted')">Accept</button>
+                <button class="btn btn-danger" onclick="respondToRequest(${request.requestID}, 'declined')">Decline</button>
+              </div>
+            `;
+                  pendingRequestsContainer.appendChild(requestCard);
+                });
+              }
+            });
+  }
+
+  // Load pending friend requests
+  function loadFriendRequests() {
+    fetch('/dashboard/friend-requests')
+            .then(response => response.json())
+            .then(data => {
+              const friendRequestsContainer = document.getElementById('friendRequests');
+              friendRequestsContainer.innerHTML = '';
+              if (data.friendRequests.length === 0) {
+                friendRequestsContainer.innerHTML = '<p>No friend requests.</p>';
+              } else {
+                data.friendRequests.forEach(friendRequest => {
+                  const friendRequestCard = document.createElement('div');
+                  friendRequestCard.className = 'card mb-3';
+                  friendRequestCard.innerHTML = `
+              <div class="card-body">
+                <h5 class="card-title">${friendRequest.userName}</h5>
+                <button class="btn btn-success" onclick="respondToFriendRequest(${friendRequest.contactID}, 'accepted')">Accept</button>
+                <button class="btn btn-danger" onclick="respondToFriendRequest(${friendRequest.contactID}, 'declined')">Decline</button>
+              </div>
+            `;
+                  friendRequestsContainer.appendChild(friendRequestCard);
+                });
+              }
+            });
+  }
+
+  // Accept or decline mentorship request
+  function respondToRequest(requestID, status) {
+    fetch(`/dashboard/respond-request/${requestID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    }).then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('Request updated successfully');
+                loadPendingRequests();
+              } else {
+                alert('Failed to update request');
+              }
+            });
+  }
+
+  // Accept or decline friend request
+  function respondToFriendRequest(contactID, status) {
+    fetch(`/dashboard/respond-friend-request/${contactID}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    }).then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                alert('Friend request updated successfully');
+                loadFriendRequests();
+              } else {
+                alert('Failed to update friend request');
+              }
+            });
+  }
+
+  // Load pending requests and friend requests on page load
+  loadPendingRequests();
+  loadFriendRequests();
 </script>
 </body>
 </html>
-

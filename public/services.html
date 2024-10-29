@@ -7,6 +7,38 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            background-color: #1a1b41;
+            color: #ffffff;
+        }
+        .services-section {
+            padding: 4rem 0;
+            background-color: #1a1b41;
+            color: #ffffff;
+        }
+        .services-section h2 {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .card-container {
+            position: relative;
+        }
+        .card {
+            background-color: #ffffff;
+            color: #000000;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            text-align: center;
+            height: 100%;
+        }
+        .card h3 {
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+    </style>
 </head>
 <body>
 <header>
@@ -26,31 +58,44 @@
     </nav>
 </header>
 
-<section class="container py-5">
-    <h2 class="text-center mb-4">SERVICES</h2>
-    <div class="row">
+<section class="container services-section text-center">
+    <h2 class="mb-4">SERVICES</h2>
+    <div class="row card-container">
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h3 class="card-title">Life Coaching</h3>
-                    <p class="card-text">At MentorMTL, our life coaching service is here to help you achieve both personal and professional goals.</p>
-                </div>
+            <div class="card">
+                <h3 class="card-title">Life Coaching</h3>
+                <p class="card-text">
+                    At MentorMTL, our life coaching service is dedicated to helping you achieve both personal and professional milestones.
+                    Our experienced coaches work closely with you to identify challenges, set realistic goals, and create actionable plans.
+                    Whether you're seeking growth, clarity, or a fresh start, our coaches offer the support you need to overcome obstacles,
+                    find purpose, and align your actions with your values. With personalized guidance and a structured approach,
+                    we empower you to make meaningful changes and unlock your full potential for a fulfilling life.
+                </p>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h3 class="card-title">Work/Life Balance Coaching</h3>
-                    <p class="card-text">Our work-life balance coaching connects you with an expert who understands the challenges of managing both personal and professional demands.</p>
-                </div>
+            <div class="card">
+                <h3 class="card-title">Work/Life Balance Coaching</h3>
+                <p class="card-text">
+                    Our work-life balance coaching connects you with seasoned experts who understand the demands of balancing personal
+                    and professional responsibilities. With years of experience, our coaches guide you in managing stress, improving
+                    time management, and setting boundaries that allow for a healthier, more fulfilling lifestyle. Together,
+                    we explore strategies to reduce burnout, enhance productivity, and create a sustainable routine that meets both your career
+                    and personal needs. This service is ideal for those looking to improve their overall well-being and find harmony between work
+                    and life.
+                </p>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h3 class="card-title">Career Mentoring</h3>
-                    <p class="card-text">Our career coaching service connects you with an experienced professional in your specific field, with over 10 years of expertise.</p>
-                </div>
+            <div class="card">
+                <h3 class="card-title">Career Mentoring</h3>
+                <p class="card-text">
+                    Our career mentoring service connects you with experienced professionals in your field who offer insights,
+                    guidance, and actionable advice to support your career growth. With over a decade of expertise, our mentors provide
+                    a personalized approach to help you navigate the complexities of career advancement, skill development, and job transitions.
+                    Whether you’re exploring new opportunities, preparing for leadership roles, or seeking feedback on career strategies,
+                    we’re here to support you every step of the way, empowering you to make informed decisions and succeed in your professional journey.
+                </p>
             </div>
         </div>
     </div>

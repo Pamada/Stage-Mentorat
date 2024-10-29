@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings</title>
-    <!-- Bootstrap CSS -->
+    <title>Search</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/styles.css">
 </head>
@@ -12,7 +11,7 @@
 <div class="d-flex">
     <!-- Sidebar -->
     <nav class="sidebar bg-light flex-column p-3">
-        <h4 class="sidebar-heading">Dashboard</h4>
+        <h4 class="sidebar-heading">DashBoard</h4>
         <ul class="nav flex-column">
             <li class="nav-item"><a class="nav-link active" href="/dashboard/dashboard.html">Dashboard</a></li>
             <li class="nav-item"><a class="nav-link" href="/dashboard/search.html">Search</a></li>
@@ -28,90 +27,153 @@
 
     <!-- Main content -->
     <div class="container-fluid">
-        <h1>Settings</h1>
-        <form id="settingsForm">
-            <!-- Display user type -->
-            <div class="mb-3">
-                <label class="form-label">User Type</label>
-                <input type="text" class="form-control" id="userType" disabled>
-            </div>
+        <h1>Search Page</h1>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control" id="searchInput" placeholder="Search by name or expertise...">
+            <button class="btn btn-primary" type="button" onclick="performSearch()">Search</button>
+        </div>
 
-            <!-- Editable fields -->
-            <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" required>
-            </div>
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" required>
-            </div>
-            <div class="mb-3">
-                <label for="phone" class="form-label">Phone</label>
-                <input type="text" class="form-control" id="phone">
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" placeholder="Enter new password">
-            </div>
+        <div id="searchResults">
+            <!-- Search results will be dynamically populated here -->
+        </div>
+    </div>
+</div>
 
-            <!-- Expertise field for mentors only -->
-            <div class="mb-3" id="expertiseField" style="display: none;">
-                <label for="expertise" class="form-label">Expertise</label>
-                <input type="text" class="form-control" id="expertise" placeholder="Enter your area of expertise">
+<!-- Modal for sending a message -->
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Send Message</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-
-            <button type="submit" class="btn btn-primary">Save Changes</button>
-        </form>
+            <div class="modal-body">
+                <form id="messageForm">
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <input type="text" class="form-control" id="subject" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="messageBody" class="form-label">Message</label>
+                        <textarea class="form-control" id="messageBody" rows="3" required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Send</button>
+                </form>
+            </div>
+        </div>
     </div>
 </div>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Fetch and display user data (assuming an API endpoint is available)
-        fetch('/api/get-user-info')
+    let selectedUserEmail = '';  // To store email of selected user for messaging
+
+    // Function to perform search
+    function performSearch() {
+        const searchTerm = document.getElementById('searchInput').value.trim();
+
+        fetch(`/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ searchTerm })
+        })
             .then(response => response.json())
             .then(data => {
-                document.getElementById('userType').value = data.userType;
-                document.getElementById('name').value = data.name;
-                document.getElementById('email').value = data.email;
-                document.getElementById('phone').value = data.phone;
-                if (data.userType === 'mentor') {
-                    document.getElementById('expertiseField').style.display = 'block';
-                    document.getElementById('expertise').value = data.expertise || '';
+                const searchResultsContainer = document.getElementById('searchResults');
+                searchResultsContainer.innerHTML = '';
+
+                if (data.results.length === 0) {
+                    searchResultsContainer.innerHTML = '<p>No results found.</p>';
+                    return;
+                }
+
+                data.results.forEach(user => {
+                    const userTypeLabel = user.userType === 'mentor' ? 'Mentor' : 'Mentoree';
+                    const expertise = user.expertise ? `<p><strong>Expertise:</strong> ${user.expertise}</p>` : '';
+
+                    const resultCard = document.createElement('div');
+                    resultCard.className = 'card mb-3';
+                    resultCard.innerHTML = `
+                    <div class="card-body">
+                        <h5 class="card-title">${user.name}</h5>
+                        <p class="card-text"><strong>Email:</strong> ${user.email}</p>
+                        <p class="card-text"><strong>Type:</strong> ${userTypeLabel}</p>
+                        ${expertise}
+                        <div class="btn-group">
+                            ${user.userType === 'mentor' ?
+                        `<button class="btn btn-primary" onclick="requestMentorship('${user.userID}')">Request Mentorship</button>` :
+                        `<button class="btn btn-primary" onclick="addFriend('${user.userID}')">Add Friend</button>`
+                    }
+                            <button class="btn btn-secondary" onclick="openMessageModal('${user.email}')">Message</button>
+                        </div>
+                    </div>
+                `;
+                    searchResultsContainer.appendChild(resultCard);
+                });
+            });
+    }
+
+    // Open the message modal and set the selected user's email
+    function openMessageModal(email) {
+        selectedUserEmail = email;
+        const messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+        messageModal.show();
+    }
+
+    // Handle message form submission
+    document.getElementById('messageForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const subject = document.getElementById('subject').value;
+        const messageBody = document.getElementById('messageBody').value;
+
+        fetch('/send-message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ receiverEmail: selectedUserEmail, subject, messageBody })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Message sent successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('messageModal')).hide();
+                } else {
+                    alert('Failed to send message.');
                 }
             });
-
-        // Handle form submission to save changes
-        document.getElementById('settingsForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            const updatedData = {
-                name: document.getElementById('name').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                password: document.getElementById('password').value,
-                expertise: document.getElementById('userType').value === 'mentor' ? document.getElementById('expertise').value : null
-            };
-
-            fetch('/api/update-user-info', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedData)
-            }).then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        alert('Profile updated successfully!');
-                        // Optionally, refresh the page or clear the password field
-                        document.getElementById('password').value = '';
-                    } else {
-                        alert('Failed to update profile.');
-                    }
-                });
-        });
     });
+
+    // Send mentorship request
+    function requestMentorship(userID) {
+        fetch('/request-mentorship', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userID })
+        }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Mentorship request sent!');
+                } else {
+                    alert('Failed to send mentorship request.');
+                }
+            });
+    }
+
+    // Add friend
+    function addFriend(userID) {
+        fetch('/add-friend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userID })
+        }).then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Friend request sent!');
+                } else {
+                    alert('Failed to send friend request.');
+                }
+            });
+    }
 </script>
 </body>
 </html>
