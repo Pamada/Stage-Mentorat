@@ -74,8 +74,8 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: 'geffkenne@yahoo.ca',         // Your Yahoo email
-        pass: 'afekmtvhjgznageu'       // Your Yahoo app-specific password
+        user: 'dana3pal@yahoo.com',         // Your Yahoo email
+        pass: 'dacjiqgjqiohowst'       // Your Yahoo app-specific password
     }
 });
 
@@ -84,7 +84,7 @@ app.post('/send_email', (req, res) => {
     const { firstName, lastName, email, phone, details } = req.body;
 
     const mailOptions = {
-        from: 'geffkenne@yahoo.ca',        // Must match the Yahoo account used for SMTP auth
+        from: 'dana3pal@yahoo.com',        // Must match the Yahoo account used for SMTP auth
         to: 'dana3pal@gmail.com',            // Admin email address
         subject: `Contact Form Submission from ${firstName} ${lastName}`,
         text: `
@@ -615,7 +615,7 @@ app.post('/send-verification-code', (req, res) => {
         verifiedEmail = email;
 
         const mailOptions = {
-            from: 'geffkenne@yahoo.ca',
+            from: 'dana3pal@yahoo.com',
             to: email,
             subject: 'Your Verification Code',
             text: `Your 4-digit verification code is: ${verificationCode}`
