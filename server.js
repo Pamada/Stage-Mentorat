@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const nodemailer = require('nodemailer');
 const session = require('express-session');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 4000;
@@ -67,21 +68,24 @@ app.get('/contact', (req, res) => {
     res.sendFile(path.join(__dirname, 'public/contact.html'));
 });
 
-//Handle contact request to admin
+// Set up email transporter
+const transporter = nodemailer.createTransport({
+    host: 'smtp.mail.yahoo.com',
+    port: 465,
+    secure: true,
+    auth: {
+        user: 'geffkenne@yahoo.ca',         // Your Yahoo email
+        pass: 'afekmtvhjgznageu'       // Your Yahoo app-specific password
+    }
+});
+
+// Route to handle contact form submission
 app.post('/send_email', (req, res) => {
     const { firstName, lastName, email, phone, details } = req.body;
 
-    const transporter = nodemailer.createTransport({
-        service: 'gmail', // or any other email service
-        auth: {
-            user: 'your-email@gmail.com', // replace with your email
-            pass: 'your-email-password'   // replace with your email password or app-specific password
-        }
-    });
-
     const mailOptions = {
-        from: email,
-        to: 'dana3pal@gmail.com',
+        from: 'geffkenne@yahoo.ca',        // Must match the Yahoo account used for SMTP auth
+        to: 'dana3pal@gmail.com',            // Admin email address
         subject: `Contact Form Submission from ${firstName} ${lastName}`,
         text: `
             First Name: ${firstName}
@@ -92,16 +96,18 @@ app.post('/send_email', (req, res) => {
         `
     };
 
+    // Send email only to the admin
     transporter.sendMail(mailOptions, (error, info) => {
         if (error) {
-            console.log(error);
-            res.send('<script>alert("There was an error sending your message. Please try again later."); window.history.back();</script>');
+            console.error('Error sending email to admin:', error);
+            res.status(500).json({ success: false, message: 'Error sending email.' });
         } else {
-            console.log('Email sent: ' + info.response);
-            res.send('<script>alert("Your message has been sent successfully!"); window.location.href = "/contact";</script>');
+            console.log('Email sent to admin:', info.response);
+            res.status(200).json({ success: true, message: 'Message sent to admin successfully!' });
         }
     });
 });
+
 
 //Handle register users
 app.post('/register', (req, res) => {
@@ -285,6 +291,22 @@ app.post('/mark-as-read/:communicationID', (req, res) => {
     });
 });
 
+// // Delete a message by communicationID
+// app.delete('/delete-message/:communicationID', (req, res) => {
+//     const communicationID = req.params.communicationID;
+//
+//     const deleteQuery = 'DELETE FROM Communications WHERE communicationID = ?';
+//
+//     db.query(deleteQuery, [communicationID], (err, result) => {
+//         if (err) throw err;
+//
+//         if (result.affectedRows > 0) {
+//             res.json({ success: true, message: 'Message deleted successfully.' });
+//         } else {
+//             res.json({ success: false, message: 'Message not found.' });
+//         }
+//     });
+// });
 
 // Route to fetch contacts
 app.get('/contacts', (req, res) => {
@@ -304,13 +326,18 @@ app.get('/contacts', (req, res) => {
 // Search route
 app.post('/search', (req, res) => {
     const { searchTerm } = req.body;
+    const loggedInUserId = req.session.user.userID;  // Get logged-in user ID
+
     const query = `
         SELECT userID, name, email, userType, expertise 
         FROM Users 
-        WHERE name LIKE ? OR expertise LIKE ?
+        WHERE (name LIKE ? OR expertise LIKE ?)
+        AND userID != ?  -- Exclude logged-in user
     `;
+
     const formattedSearchTerm = `%${searchTerm}%`;
-    db.query(query, [formattedSearchTerm, formattedSearchTerm], (err, results) => {
+
+    db.query(query, [formattedSearchTerm, formattedSearchTerm, loggedInUserId], (err, results) => {
         if (err) {
             console.error(err);
             return res.status(500).json({ success: false, message: 'Error performing search.' });
@@ -318,6 +345,7 @@ app.post('/search', (req, res) => {
         res.json({ success: true, results });
     });
 });
+
 
 // Mentorship request route
 app.post('/request-mentorship', (req, res) => {
@@ -567,6 +595,87 @@ app.post('/update-settings', (req, res) => {
 });
 
 
+
+// Route to send verification code
+app.post('/send-verification-code', (req, res) => {
+    const { email } = req.body;
+
+    // Verify email exists in database
+    const findEmailQuery = 'SELECT email FROM Users WHERE email = ?';
+    db.query(findEmailQuery, [email], (err, results) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error.' });
+
+        if (results.length === 0) {
+            return res.json({ success: false, message: 'Email not found.' });
+        }
+
+        // Generate and store 4-digit code
+        verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+        verifiedEmail = email;
+
+        const mailOptions = {
+            from: 'geffkenne@yahoo.ca',
+            to: email,
+            subject: 'Your Verification Code',
+            text: `Your 4-digit verification code is: ${verificationCode}`
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+            if (error) {
+                return res.status(500).json({ success: false, message: 'Failed to send email.' });
+            }
+            res.json({ success: true, message: 'Verification code sent to email.' });
+        });
+    });
+});
+
+// Route to verify code
+app.post('/verify-code', (req, res) => {
+    const { code } = req.body;
+
+    if (code === verificationCode) {
+        res.json({ success: true });
+    } else {
+        res.json({ success: false });
+    }
+});
+
+// Endpoint to reset password
+app.post('/reset-password', (req, res) => {
+    const { email, verificationCode, newPassword } = req.body;
+
+    // Check if the verification code is correct
+    const queryCheckCode = `
+        SELECT * FROM Users 
+        WHERE email = ? AND verification_code = ? AND verification_expiry > NOW()
+    `;
+
+    db.query(queryCheckCode, [email, verificationCode], (err, results) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).json({ success: false, message: 'Error verifying the code.' });
+        }
+
+        // If code is valid, update the password
+        if (results.length > 0) {
+            // Hash the new password (make sure bcrypt is installed and required at the top)
+            const hashedPassword = bcrypt.hashSync(newPassword, 10);
+
+            const updatePasswordQuery = `UPDATE Users SET password = ?, verification_code = NULL WHERE email = ?`;
+            db.query(updatePasswordQuery, [hashedPassword, email], (err) => {
+                if (err) {
+                    console.error(err);
+                    return res.status(500).json({ success: false, message: 'Error updating password.' });
+                }
+
+                res.json({ success: true, message: 'Password has been reset successfully.' });
+            });
+        } else {
+            res.status(400).json({ success: false, message: 'Invalid or expired verification code.' });
+        }
+    });
+});
 
 // Serve user data to frontend
 app.get('/user-data', (req, res) => {
